@@ -1,15 +1,17 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+from wordcloud import WordCloud
+import matplotlib.pyplot as plt
 
-# 1. Page Configuration (Wide layout, Dark/Light friendly clean title)
+# 1. Page Configuration
 st.set_page_config(
     page_title="IMDB Sentiment Analysis Dashboard",
     page_icon="🎬",
     layout="wide"
 )
 
-# 2. Custom CSS Injection for Modern UI Styling (Dark Theme & Neon Accents)
+# 2. Custom CSS Injection for Modern UI Styling (Dark Theme & Glowing Cards)
 st.markdown("""
     <style>
     .main {
@@ -39,7 +41,6 @@ st.markdown("""
         letter-spacing: 0.05em;
     }
     .metric-value {
-        color: #38bdf8;
         font-size: 28px;
         font-weight: 700;
         margin-top: 8px;
@@ -47,19 +48,17 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 3. Cache Data Loading for High Performance
+# 3. Cache Data Loading
 @st.cache_data
 def load_data():
-    # Load dataset (make sure IMDB Dataset.csv is in the same folder)
     df = pd.read_csv('IMDB Dataset.csv')
-    # Clean/Precompute basic columns if needed
     df['word_count'] = df['review'].apply(lambda x: len(str(x).split()))
     return df
 
-with st.spinner('🚀 Loading IMDB Dataset & Preparing Dashboard... Please wait!'):
+with st.spinner('🚀 Loading IMDB Dataset & Preparing Enhanced Dashboard... Please wait!'):
     df = load_data()
 
-# 4. Sidebar Controls & Filters
+# 4. Sidebar Controls & New Interactive Features
 st.sidebar.markdown("### 🎛️ Control Panel")
 st.sidebar.markdown("---")
 
@@ -89,7 +88,7 @@ filtered_df = filtered_df[filtered_df['word_count'] <= max_words]
 
 # 5. Main Header Section
 st.markdown("<h1 style='text-align: center; color: #38bdf8;'>🎬 IMDB Movie Review Sentiment Analysis</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: #94a3b8; font-size: 18px;'>An interactive Big Data analytics dashboard exploring 50,000 cinematic reviews using Streamlit and Pandas.</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #94a3b8; font-size: 18px;'>Advanced Big Data Analytics Dashboard with Live Text Prediction & Visual Insights</p>", unsafe_allow_html=True)
 st.markdown("---")
 
 # 6. Top Metrics Row
@@ -158,7 +157,7 @@ with chart_col1:
         )
         st.plotly_chart(fig_pie, use_container_width=True)
     else:
-        st.warning("No data available for the selected filters.")
+        st.warning("No data available.")
 
 with chart_col2:
     st.markdown("### 📈 Review Length Distribution")
@@ -178,36 +177,69 @@ with chart_col2:
         )
         st.plotly_chart(fig_hist, use_container_width=True)
     else:
-        st.warning("No data available for the selected filters.")
+        st.warning("No data available.")
 
 st.markdown("---")
 
-# 8. Interactive Review Inspector Table & Explorer
-st.markdown("### 🔎 Interactive Review Inspector")
+# 8. NEW FEATURE: Word Cloud Section
+st.markdown("### ☁️ Frequent Words Cloud")
 if total_reviews > 0:
-    # Display dataframe preview with styled container
-    st.dataframe(
-        filtered_df[['review', 'sentiment', 'word_count']].head(100),
-        use_container_width=True,
-        height=350
-    )
+    text_data = " ".join(review for review in filtered_df['review'].head(500))
+    wordcloud = WordCloud(width=800, height=350, background_color='#0b0f19', colormap='Set2').generate(text_data)
     
-    # Single Review Inspector Tool
-    st.markdown("#### 📖 Inspect Specific Review Text")
-    review_index = st.number_input("Select Review Index:", min_value=0, max_value=max(0, len(filtered_df)-1), value=0)
-    
-    selected_row = filtered_df.iloc[review_index]
-    sentiment_color = "#4ade80" if selected_row['sentiment'] == 'positive' else "#f87171"
-    
-    st.markdown(f"""
-        <div style="background-color: #1e293b; padding: 20px; border-radius: 10px; border-left: 5px solid {sentiment_color};">
-            <p><b>Sentiment:</b> <span style="color: {sentiment_color}; text-transform: uppercase;">{selected_row['sentiment']}</span> | <b>Word Count:</b> {selected_row['word_count']}</p>
-            <p style="color: #cbd5e1; font-style: italic;">"{selected_row['review']}"</p>
-        </div>
-    """, unsafe_allow_html=True)
+    fig, ax = plt.subplots(figsize=(10, 4))
+    ax.imshow(wordcloud, interpolation='bilinear')
+    ax.axis("off")
+    fig.patch.set_facecolor('#0b0f19')
+    st.pyplot(fig)
 else:
-    st.info("Adjust your sidebar filters to view records.")
+    st.info("No data for Word Cloud.")
+
+st.markdown("---")
+
+# # 9. NEW FEATURE: Live Sentiment Predictor / Analyzer Tool
+st.markdown("### ✨ Interactive Custom Review Sentiment Tester")
+user_input_review = st.text_area("Type or paste a movie review below to test its sentiment:")
+if st.button("Analyze Sentiment"):
+    if user_input_review.strip() != "":
+        text_lower = user_input_review.lower()
+        
+        # Positive and Negative keywords list
+        positive_words = ["good", "great", "awesome", "fantastic", "amazing", "love", "best", "excellent", "brilliant", "wonderful", "enjoy"]
+        negative_words = ["boring", "waste", "bad", "worst", "terrible", "awful", "poor", "horrible", "disappointing", "dull", "slow"]
+        
+        pos_score = sum(1 for word in positive_words if word in text_lower)
+        neg_score = sum(1 for word in negative_words if word in text_lower)
+        
+        if neg_score > pos_score:
+            st.error("⚠️ Predicted Sentiment: **NEGATIVE 😞**")
+        elif pos_score > neg_score:
+            st.success("🎉 Predicted Sentiment: **POSITIVE 😊**")
+        else:
+            # Fallback based on common negative words presence or length check
+            if "boring" in text_lower or "waste" in text_lower or "not" in text_lower:
+                st.error("⚠️ Predicted Sentiment: **NEGATIVE 😞**")
+            else:
+                st.success("🎉 Predicted Sentiment: **POSITIVE 😊**")
+    else:
+        st.warning("Please type a review first.")
+
+# 10. Data Table & CSV Download Option
+st.markdown("### 🔎 Filtered Reviews Inspector & Export")
+if total_reviews > 0:
+    st.dataframe(filtered_df[['review', 'sentiment', 'word_count']].head(50), use_container_width=True, height=300)
+    
+    # Download Button Feature
+    csv_data = filtered_df.to_csv(index=False).encode('utf-8')
+    st.download_button(
+        label="📥 Download Filtered Data as CSV",
+        data=csv_data,
+        file_name='filtered_imdb_sentiment.csv',
+        mime='text/csv'
+    )
+else:
+    st.info("No records found.")
 
 # Footer
 st.markdown("---")
-st.markdown("<p style='text-align: center; color: #64748b;'>IMDB Sentiment Analysis Dashboard | Big Data Project</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #64748b;'>IMDB Sentiment Analysis Big Data Dashboard | Enhanced Edition</p>", unsafe_allow_html=True)
